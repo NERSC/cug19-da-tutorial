@@ -138,8 +138,8 @@ def main():
         callbacks.append(keras.callbacks.ModelCheckpoint(checkpoint_format))
 
     # Train the model
-    train_steps_per_epoch = len(train_gen) // (train_config['batch_size'] * n_ranks)
-    valid_steps_per_epoch = len(valid_gen) // (train_config['batch_size'] * n_ranks)
+    train_steps_per_epoch = max([len(train_gen) // (train_config['batch_size'] * n_ranks), 1])
+    valid_steps_per_epoch = max([len(valid_gen) // (train_config['batch_size'] * n_ranks), 1])
     history = model.fit_generator(train_gen,
                                   epochs=train_config['n_epochs'],
                                   steps_per_epoch=train_steps_per_epoch,
