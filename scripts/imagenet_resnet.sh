@@ -8,5 +8,6 @@
 #SBATCH -o logs/%x-%j.out
 
 . scripts/setup.sh
+
 config=configs/imagenet_resnet.yaml
-srun -l python train.py $config --distributed
+srun -N ${SLURM_NNODES} -c 272 -u python train.py $config --distributed
