@@ -1,5 +1,8 @@
 #!/bin/bash
 
+#print what you are doing:
+set -x
+
 #create kernel dir
 mkdir -p ${HOME}/.local/share/jupyter/kernels
 
