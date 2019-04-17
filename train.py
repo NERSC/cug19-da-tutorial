@@ -84,7 +84,8 @@ def main():
     output_dir = os.path.expandvars(config['output_dir'])
     checkpoint_format = os.path.join(output_dir, 'checkpoints',
                                      'checkpoint-{epoch}.h5')
-    os.makedirs(output_dir, exist_ok=True)
+    if rank==0:
+        os.makedirs(output_dir, exist_ok=True)
 
     # Loggging
     config_logging(verbose=args.verbose, output_dir=output_dir)

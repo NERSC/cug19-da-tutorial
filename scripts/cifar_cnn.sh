@@ -11,4 +11,4 @@
 export HDF5_USE_FILE_LOCKING=FALSE
 
 config=configs/cifar10_cnn.yaml
-srun -N ${SLURM_NNODES} -c 272 -u python train.py $config
+srun -N ${SLURM_NNODES} -c 272 -u python train.py $config --distributed
