@@ -20,5 +20,5 @@ def get_datasets(batch_size, train_dir, valid_dir):
     train_iter = train_gen.flow_from_directory(train_dir, batch_size=batch_size,
                                                target_size=(224, 224), shuffle=True)
     test_iter = train_gen.flow_from_directory(valid_dir, batch_size=batch_size,
-                                              target_size=(224, 224))
+                                              target_size=(224, 224), shuffle=True)
     return train_iter, test_iter

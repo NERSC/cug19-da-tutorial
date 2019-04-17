@@ -37,5 +37,5 @@ def get_datasets(batch_size, n_train=None, n_valid=None):
                                    horizontal_flip=True)
     valid_gen = ImageDataGenerator()
     train_iter = train_gen.flow(x_train, y_train, batch_size=batch_size, shuffle=True)
-    valid_iter = valid_gen.flow(x_valid, y_valid, batch_size=batch_size)
+    valid_iter = valid_gen.flow(x_valid, y_valid, batch_size=batch_size, shuffle=True)
     return train_iter, valid_iter
