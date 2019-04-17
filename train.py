@@ -56,6 +56,21 @@ def load_config(config_file):
         config = yaml.load(f)
     return config
 
+def get_basic_callbacks(distributed=False):
+    cb = []
+    
+    if distributed:
+        #this is for broadcasting the initial model to all nodes
+        cb.append(hvd.callbacks.BroadcastGlobalVariablesCallback(0))
+
+        #this is for averaging the reported metrics across all nodes
+        cb.append(hvd.callbacks.MetricAverageCallback())
+        
+    #timing callback function
+    cb.append(TimingCallback())
+
+    return cb
+
 def main():
     """Main function"""
 
@@ -95,8 +110,7 @@ def main():
     # Build the model
     model = get_model(**config['model'])
     # Configure optimizer
-    opt = get_optimizer(n_ranks=n_ranks, distributed=args.distributed,
-                        **config['optimizer'])
+    opt = get_optimizer(n_ranks=n_ranks, **config['optimizer'])
     # Compile the model
     model.compile(loss=train_config['loss'], optimizer=opt,
                   metrics=train_config['metrics'])
@@ -104,41 +118,34 @@ def main():
         model.summary()
 
     # Prepare the training callbacks
-    callbacks = []
-    if args.distributed:
+    callbacks = get_basic_callbacks(args.distributed)
 
-        # Broadcast initial variable states from rank 0 to all processes.
-        callbacks.append(hvd.callbacks.BroadcastGlobalVariablesCallback(0))
+    #warmups:
+    warmup_epochs = train_config.get('lr_warmup_epochs', 0)
+    callbacks.append(hvd.callbacks.LearningRateWarmupCallback(
+                     warmup_epochs=warmup_epochs, verbose=1))
 
-        # Learning rate warmup
-        warmup_epochs = train_config.get('lr_warmup_epochs', 0)
-        callbacks.append(hvd.callbacks.LearningRateWarmupCallback(
-            warmup_epochs=warmup_epochs, verbose=1))
-
-        # Learning rate decay schedule
-        for lr_schedule in train_config.get('lr_schedule', []):
-            if rank == 0:
-                logging.info('Adding LR schedule: %s', lr_schedule)
-            callbacks.append(hvd.callbacks.LearningRateScheduleCallback(**lr_schedule))
+    #lr_schedule
+    for lr_schedule in train_config.get('lr_schedule', []):
+        if rank == 0:
+            logging.info('Adding LR schedule: %s', lr_schedule)
+        callbacks.append(hvd.callbacks.LearningRateScheduleCallback(**lr_schedule))
 
     # Checkpoint only from rank 0
     if rank == 0:
         os.makedirs(os.path.dirname(checkpoint_format), exist_ok=True)
         callbacks.append(keras.callbacks.ModelCheckpoint(checkpoint_format))
 
-    # Timing
-    timing_callback = TimingCallback()
-    callbacks.append(timing_callback)
-
     # Train the model
-    steps_per_epoch = len(train_gen) // n_ranks
+    train_steps_per_epoch = len(train_gen) // (train_config['batch_size'] * n_ranks)
+    valid_steps_per_epoch = len(valid_gen) // (train_config['batch_size'] * n_ranks)
     history = model.fit_generator(train_gen,
                                   epochs=train_config['n_epochs'],
-                                  steps_per_epoch=steps_per_epoch,
+                                  steps_per_epoch=train_steps_per_epoch,
                                   validation_data=valid_gen,
-                                  validation_steps=len(valid_gen),
+                                  validation_steps=valid_steps_per_epoch,
                                   callbacks=callbacks,
-                                  workers=4, verbose=2)
+                                  workers=4, verbose=1 if rank==0 else 0)
 
     # Save training history
     if rank == 0:
@@ -149,8 +156,8 @@ def main():
         if 'val_top_k_categorical_accuracy' in history.history.keys():
             logging.info('Best top-5 validation accuracy: %.3f',
                          max(history.history['val_top_k_categorical_accuracy']))
-        logging.info('Average time per epoch: %.3f s',
-                     np.mean(timing_callback.times))
+#        logging.info('Average time per epoch: %.3f s',
+#                     np.mean(timing_callback.times))
         np.savez(os.path.join(output_dir, 'history'),
                  n_ranks=n_ranks, **history.history)
 

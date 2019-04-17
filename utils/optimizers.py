@@ -9,8 +9,7 @@ import math
 import keras
 import horovod.keras as hvd
 
-def get_optimizer(name, lr, lr_scaling='linear', n_ranks=1,
-                  distributed=False, **opt_args):
+def get_optimizer(name, lr, lr_scaling='linear', n_ranks=1, **opt_args):
     """
     Configure the optimizer and scale the learning rate by n_ranks.
     TODO: add support for wrapping TF optimizers like LARS.
@@ -26,7 +25,7 @@ def get_optimizer(name, lr, lr_scaling='linear', n_ranks=1,
     opt = OptType(lr=lr, **opt_args)
 
     # Distributed optimizer wrapper
-    if distributed:
+    if n_ranks > 1:
         opt = hvd.DistributedOptimizer(opt)
 
     return opt

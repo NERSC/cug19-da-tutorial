@@ -18,7 +18,7 @@ def get_datasets(batch_size, train_dir, valid_dir):
         preprocessing_function=keras.applications.resnet50.preprocess_input,
         zoom_range=(0.875, 0.875))
     train_iter = train_gen.flow_from_directory(train_dir, batch_size=batch_size,
-                                               target_size=(224, 224))
+                                               target_size=(224, 224), shuffle=True)
     test_iter = train_gen.flow_from_directory(valid_dir, batch_size=batch_size,
                                               target_size=(224, 224))
     return train_iter, test_iter

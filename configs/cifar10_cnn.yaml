@@ -1,5 +1,5 @@
 description: 'CNN CIFAR10'
-output_dir: $SCRATCH/sc18-dl-tutorial/cifar-cnn-N${SLURM_JOB_NUM_NODES}-${SLURM_JOB_ID}
+output_dir: $SCRATCH/cug19-da-tutorial/cifar-cnn-N${SLURM_JOB_NUM_NODES}-${SLURM_JOB_ID}
 
 data:
     name: cifar10
@@ -15,8 +15,8 @@ optimizer:
     lr: 0.001
 
 training:
-    batch_size: 64
-    n_epochs: 20
+    batch_size: 32
+    n_epochs: 128
     lr_warmup_epochs: 0
     loss: categorical_crossentropy
     metrics: [accuracy]
