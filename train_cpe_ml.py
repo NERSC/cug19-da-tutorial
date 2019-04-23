@@ -56,6 +56,21 @@ def load_config(config_file):
         config = yaml.load(f)
     return config
 
+def get_basic_callbacks(distributed=False, max_steps=1, buffer_size=5*2**20):
+    cb = []
+    
+    if distributed:
+        #init plugin callback needs to go here
+        cb.append(cpeml.callbacks.InitPluginCallback(max_steps, buffer_size))
+
+        #this is for broadcasting the initial model to all nodes
+        cb.append(cpeml.callbacks.BroadcastGlobalVariablesCallback(0))
+
+        ##this is for averaging the reported metrics across all nodes
+        cb.append(cpeml.callbacks.MetricAverageCallback())
+
+    return cb
+
 def main():
     """Main function"""
 
@@ -69,7 +84,8 @@ def main():
     output_dir = os.path.expandvars(config['output_dir'])
     checkpoint_format = os.path.join(output_dir, 'checkpoints',
                                      'checkpoint-{epoch}.h5')
-    os.makedirs(output_dir, exist_ok=True)
+    if rank==0:
+        os.makedirs(output_dir, exist_ok=True)
 
     # Loggging
     config_logging(verbose=args.verbose, output_dir=output_dir)
@@ -81,10 +97,11 @@ def main():
         logging.info('Saving job outputs to %s', output_dir)
 
     # Configure session
-    if args.distributed:
-        gpu = hvd.local_rank()
-    else:
-        gpu = args.gpu
+    gpu=None
+    #if args.distributed:
+    #    gpu = hvd.local_rank()
+    #else:
+    #    gpu = args.gpu
     device_config = config.get('device', {})
     configure_session(gpu=gpu, **device_config)
 
@@ -95,53 +112,48 @@ def main():
     # Build the model
     model = get_model(**config['model'])
     # Configure optimizer
-    opt = get_optimizer(n_ranks=n_ranks, distributed=args.distributed,
-                        **config['optimizer'])
+    opt = get_optimizer(n_ranks=n_ranks, dist_wrapper=cpeml.DistributedOptimizer, **config['optimizer'])
     # Compile the model
-    model.compile(optimizer=opt, loss=train_config['loss'],
+    model.compile(loss=train_config['loss'], optimizer=opt,
                   metrics=train_config['metrics'])
     if rank == 0:
         model.summary()
-
+    
+    #compute how many steps we need
+    train_steps_per_epoch = max([len(train_gen) // n_ranks, 1])
+    valid_steps_per_epoch = max([len(valid_gen) // n_ranks, 1])
+    
     # Prepare the training callbacks
-    callbacks = []
-    if args.distributed:
-        
-        #initialize plugin callback
-        callbacks.append(cpeml.callbacks.InitPluginCallback(max_steps=train_config['n_epochs']*steps_per_epoch, buffer_size=10*2**20))
-        
-        # Broadcast initial variable states from rank 0 to all processes.
-        callbacks.append(cpeml.callbacks.BroadcastGlobalVariablesCallback(0))
+    callbacks = get_basic_callbacks(args.distributed, max_steps=train_steps_per_epoch*train_config['n_epochs'], buffer_size=10*2**20)
 
-        # Learning rate warmup
-        warmup_epochs = train_config.get('lr_warmup_epochs', 0)
-        callbacks.append(hvd.callbacks.LearningRateWarmupCallback(
-            warmup_epochs=warmup_epochs, verbose=1))
+    #warmups:
+    warmup_epochs = train_config.get('lr_warmup_epochs', 0)
+    #callbacks.append(hvd.callbacks.LearningRateWarmupCallback(
+    #                 warmup_epochs=warmup_epochs, verbose=1))
 
-        # Learning rate decay schedule
-        for lr_schedule in train_config.get('lr_schedule', []):
-            if rank == 0:
-                logging.info('Adding LR schedule: %s', lr_schedule)
-            callbacks.append(hvd.callbacks.LearningRateScheduleCallback(**lr_schedule))
+    #lr_schedule
+    #for lr_schedule in train_config.get('lr_schedule', []):
+    #    if rank == 0:
+    #        logging.info('Adding LR schedule: %s', lr_schedule)
+    #    callbacks.append(hvd.callbacks.LearningRateScheduleCallback(**lr_schedule))
 
     # Checkpoint only from rank 0
     if rank == 0:
         os.makedirs(os.path.dirname(checkpoint_format), exist_ok=True)
         callbacks.append(keras.callbacks.ModelCheckpoint(checkpoint_format))
-
-    # Timing
+        
+    #timing callback function
     timing_callback = TimingCallback()
     callbacks.append(timing_callback)
-
+    
     # Train the model
-    steps_per_epoch = len(train_gen) // n_ranks
     history = model.fit_generator(train_gen,
                                   epochs=train_config['n_epochs'],
-                                  steps_per_epoch=steps_per_epoch,
+                                  steps_per_epoch=train_steps_per_epoch,
                                   validation_data=valid_gen,
-                                  validation_steps=len(valid_gen),
+                                  validation_steps=valid_steps_per_epoch,
                                   callbacks=callbacks,
-                                  workers=4, verbose=2)
+                                  workers=4, verbose=1 if rank==0 else 0)
 
     # Save training history
     if rank == 0:
@@ -165,7 +177,8 @@ def main():
 
     if rank == 0:
         logging.info('All done!')
-    
+        
+    #wrap up
     cpeml.finalize()
 
 if __name__ == '__main__':

@@ -65,9 +65,6 @@ def get_basic_callbacks(distributed=False):
 
         #this is for averaging the reported metrics across all nodes
         cb.append(hvd.callbacks.MetricAverageCallback())
-        
-    #timing callback function
-    cb.append(TimingCallback())
 
     return cb
 
@@ -111,7 +108,7 @@ def main():
     # Build the model
     model = get_model(**config['model'])
     # Configure optimizer
-    opt = get_optimizer(n_ranks=n_ranks, **config['optimizer'])
+    opt = get_optimizer(n_ranks=n_ranks, dist_wrapper=hvd.DistributedOptimizer, **config['optimizer'])
     # Compile the model
     model.compile(loss=train_config['loss'], optimizer=opt,
                   metrics=train_config['metrics'])
@@ -136,6 +133,10 @@ def main():
     if rank == 0:
         os.makedirs(os.path.dirname(checkpoint_format), exist_ok=True)
         callbacks.append(keras.callbacks.ModelCheckpoint(checkpoint_format))
+        
+    #timing callback function
+    timing_callback = TimingCallback()
+    callbacks.append(timing_callback)
 
     # Train the model
     train_steps_per_epoch = max([len(train_gen) // n_ranks, 1])
@@ -157,8 +158,8 @@ def main():
         if 'val_top_k_categorical_accuracy' in history.history.keys():
             logging.info('Best top-5 validation accuracy: %.3f',
                          max(history.history['val_top_k_categorical_accuracy']))
-#        logging.info('Average time per epoch: %.3f s',
-#                     np.mean(timing_callback.times))
+        logging.info('Average time per epoch: %.3f s',
+                     np.mean(timing_callback.times))
         np.savez(os.path.join(output_dir, 'history'),
                  n_ranks=n_ranks, **history.history)
 
