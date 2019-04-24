@@ -82,34 +82,28 @@ class MetricAverageCallback(Callback):
     def __init__(self, device='', *args):
         super(MetricAverageCallback, self).__init__(*args)
         self.backend = K
-        self.variables = {}
-        self.allreduce_ops = {}
         self.device = device
-
-    def _make_variable(self, metric, value):
-        with tf.name_scope('MetricAverageCallback'):
-            var = tf.Variable(value, name=metric, dtype=tf.float32)
-            self.backend.get_session().run(var.initializer)
-            allreduce_op = mc.gradients([var], 0)
-            return var, allreduce_op
 
     def _average_metrics_in_place(self, logs):
         logs = logs or {}
-        reduced_logs = {}
         # Reduce every metric among workers. Sort metrics by name
         # to ensure consistent order.
-        for metric, value in sorted(logs.items()):
-            if metric not in self.variables:
-                self.variables[metric], self.allreduce_ops[metric] = \
-                    self._make_variable(metric, value)
-            else:
-                self.backend.set_value(self.variables[metric], value)
-            reduced_logs[metric] = \
-                self.backend.get_session().run(self.allreduce_ops[metric])
-        # Override the reduced values back into logs dictionary
-        # for other callbacks to use.
-        for metric, value in reduced_logs.items():
-            logs[metric] = value
+        #create list of metrics:
+        if logs:
+            metric_array = np.zeros(len(list(logs.items())), dtype=np.float32)
+
+            #extract metrics and pack into buffer
+            for idx, token in enumerate(sorted(logs.items())):
+                metric, value = token
+                metric_array[idx] = np.float32(value)
+
+            #average array
+            mc.average(metric_array)
+
+            # Unpack buffer
+            for idx, token in enumerate(sorted(logs.items())):
+                metric, _ = token
+                logs[metric] = metric_array[idx]
 
     def on_epoch_end(self, epoch, logs=None):
         self._average_metrics_in_place(logs)

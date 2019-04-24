@@ -66,7 +66,7 @@ def get_basic_callbacks(distributed=False, max_steps=1, buffer_size=5*2**20):
         #this is for broadcasting the initial model to all nodes
         cb.append(cpeml.callbacks.BroadcastGlobalVariablesCallback(0))
 
-        ##this is for averaging the reported metrics across all nodes
+        #this is for averaging the reported metrics across all nodes
         cb.append(cpeml.callbacks.MetricAverageCallback())
 
     return cb
