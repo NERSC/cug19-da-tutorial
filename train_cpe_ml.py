@@ -53,7 +53,7 @@ def init_workers(distributed=False):
 
 def load_config(config_file):
     with open(config_file) as f:
-        config = yaml.load(f)
+        config = yaml.load(f, Loader=yaml.FullLoader)
     return config
 
 def get_basic_callbacks(distributed=False, max_steps=1, buffer_size=5*2**20):
@@ -128,14 +128,13 @@ def main():
 
     #warmups:
     warmup_epochs = train_config.get('lr_warmup_epochs', 0)
-    #callbacks.append(hvd.callbacks.LearningRateWarmupCallback(
-    #                 warmup_epochs=warmup_epochs, verbose=1))
+    callbacks.append(cpeml.callbacks.LearningRateWarmupCallback(warmup_epochs=warmup_epochs, verbose=1))
 
     #lr_schedule
-    #for lr_schedule in train_config.get('lr_schedule', []):
-    #    if rank == 0:
-    #        logging.info('Adding LR schedule: %s', lr_schedule)
-    #    callbacks.append(hvd.callbacks.LearningRateScheduleCallback(**lr_schedule))
+    for lr_schedule in train_config.get('lr_schedule', []):
+        if rank == 0:
+            logging.info('Adding LR schedule: %s', lr_schedule)
+        callbacks.append(cpeml.callbacks.LearningRateScheduleCallback(**lr_schedule))
 
     # Checkpoint only from rank 0
     if rank == 0:
