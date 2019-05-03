@@ -107,18 +107,18 @@ def main():
     if rank == 0:
         model.summary()
     
-    #compute how many steps we need
+    # Number of training steps
     train_steps_per_epoch = max([len(train_gen) // n_ranks, 1])
     valid_steps_per_epoch = max([len(valid_gen) // n_ranks, 1])
     
     # Prepare the training callbacks
     callbacks = get_basic_callbacks(args.distributed, max_steps=train_steps_per_epoch*train_config['n_epochs'], buffer_size=10*2**20)
 
-    #warmups:
+    # Learning rate warmup
     warmup_epochs = train_config.get('lr_warmup_epochs', 0)
     callbacks.append(cpeml.callbacks.LearningRateWarmupCallback(warmup_epochs=warmup_epochs, verbose=1))
 
-    #lr_schedule
+    # Learning rate decay schedule
     for lr_schedule in train_config.get('lr_schedule', []):
         if rank == 0:
             logging.info('Adding LR schedule: %s', lr_schedule)
@@ -129,7 +129,7 @@ def main():
         os.makedirs(os.path.dirname(checkpoint_format), exist_ok=True)
         callbacks.append(keras.callbacks.ModelCheckpoint(checkpoint_format))
         
-    #timing callback function
+    # Timing callback
     timing_callback = TimingCallback()
     callbacks.append(timing_callback)
     
