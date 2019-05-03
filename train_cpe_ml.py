@@ -28,21 +28,14 @@ def parse_args():
     add_arg('config', nargs='?', default='configs/hello.yaml')
     add_arg('-d', '--distributed', action='store_true')
     add_arg('-v', '--verbose', action='store_true')
-    add_arg('--gpu', type=int,
-            help='specify a gpu device ID if not running distributed')
     add_arg('--show-config', action='store_true')
     add_arg('--interactive', action='store_true')
     return parser.parse_args()
 
-def config_logging(verbose, output_dir):
+def config_logging(verbose):
     log_format = '%(asctime)s %(levelname)s %(message)s'
     log_level = logging.DEBUG if verbose else logging.INFO
-    stream_handler = logging.StreamHandler(stream=sys.stdout)
-    stream_handler.setLevel(log_level)
-    file_handler = logging.FileHandler(os.path.join(output_dir, 'out.log'), mode='w')
-    file_handler.setLevel(log_level)
-    logging.basicConfig(level=log_level, format=log_format,
-                        handlers=[stream_handler, file_handler])
+    logging.basicConfig(level=log_level, format=log_format)
 
 def init_workers(distributed=False):
     rank, n_ranks = 0, 1
@@ -88,7 +81,7 @@ def main():
         os.makedirs(output_dir, exist_ok=True)
 
     # Loggging
-    config_logging(verbose=args.verbose, output_dir=output_dir)
+    config_logging(verbose=args.verbose)
     logging.info('Initialized rank %i out of %i', rank, n_ranks)
     if args.show_config:
         logging.info('Command line config: %s', args)
@@ -97,13 +90,8 @@ def main():
         logging.info('Saving job outputs to %s', output_dir)
 
     # Configure session
-    gpu=None
-    #if args.distributed:
-    #    gpu = hvd.local_rank()
-    #else:
-    #    gpu = args.gpu
     device_config = config.get('device', {})
-    configure_session(gpu=gpu, **device_config)
+    configure_session(**device_config)
 
     # Load the data
     train_gen, valid_gen = get_datasets(batch_size=train_config['batch_size'],
@@ -119,18 +107,18 @@ def main():
     if rank == 0:
         model.summary()
     
-    #compute how many steps we need
+    # Number of training steps
     train_steps_per_epoch = max([len(train_gen) // n_ranks, 1])
     valid_steps_per_epoch = max([len(valid_gen) // n_ranks, 1])
     
     # Prepare the training callbacks
     callbacks = get_basic_callbacks(args.distributed, max_steps=train_steps_per_epoch*train_config['n_epochs'], buffer_size=10*2**20)
 
-    #warmups:
+    # Learning rate warmup
     warmup_epochs = train_config.get('lr_warmup_epochs', 0)
     callbacks.append(cpeml.callbacks.LearningRateWarmupCallback(warmup_epochs=warmup_epochs, verbose=1))
 
-    #lr_schedule
+    # Learning rate decay schedule
     for lr_schedule in train_config.get('lr_schedule', []):
         if rank == 0:
             logging.info('Adding LR schedule: %s', lr_schedule)
@@ -141,7 +129,7 @@ def main():
         os.makedirs(os.path.dirname(checkpoint_format), exist_ok=True)
         callbacks.append(keras.callbacks.ModelCheckpoint(checkpoint_format))
         
-    #timing callback function
+    # Timing callback
     timing_callback = TimingCallback()
     callbacks.append(timing_callback)
     
@@ -152,7 +140,7 @@ def main():
                                   validation_data=valid_gen,
                                   validation_steps=valid_steps_per_epoch,
                                   callbacks=callbacks,
-                                  workers=4, verbose=1 if rank==0 else 0)
+                                  workers=4, verbose=2 if rank==0 else 0)
 
     # Save training history
     if rank == 0:
@@ -177,8 +165,9 @@ def main():
     if rank == 0:
         logging.info('All done!')
         
-    #wrap up
-    cpeml.finalize()
+    # Finalize the cray plugin
+    if args.distributed:
+        cpeml.finalize()
 
 if __name__ == '__main__':
     main()

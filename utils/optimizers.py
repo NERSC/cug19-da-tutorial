@@ -11,7 +11,6 @@ import keras
 def get_optimizer(name, lr, lr_scaling='linear', n_ranks=1, dist_wrapper=None, **opt_args):
     """
     Configure the optimizer and scale the learning rate by n_ranks.
-    TODO: add support for wrapping TF optimizers like LARS.
     """
     # Scale the learning rate
     if lr_scaling == 'linear':
