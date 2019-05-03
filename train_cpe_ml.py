@@ -165,8 +165,9 @@ def main():
     if rank == 0:
         logging.info('All done!')
         
-    #wrap up
-    cpeml.finalize()
+    # Finalize the cray plugin
+    if args.distributed:
+        cpeml.finalize()
 
 if __name__ == '__main__':
     main()
