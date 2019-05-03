@@ -141,7 +141,7 @@ def main():
                                   validation_data=valid_gen,
                                   validation_steps=valid_steps_per_epoch,
                                   callbacks=callbacks,
-                                  workers=4, verbose=1 if rank==0 else 0)
+                                  workers=4, verbose=2 if rank==0 else 0)
 
     # Save training history
     if rank == 0:
