@@ -32,15 +32,10 @@ def parse_args():
     add_arg('--interactive', action='store_true')
     return parser.parse_args()
 
-def config_logging(verbose, output_dir):
+def config_logging(verbose):
     log_format = '%(asctime)s %(levelname)s %(message)s'
     log_level = logging.DEBUG if verbose else logging.INFO
-    stream_handler = logging.StreamHandler(stream=sys.stdout)
-    stream_handler.setLevel(log_level)
-    file_handler = logging.FileHandler(os.path.join(output_dir, 'out.log'), mode='w')
-    file_handler.setLevel(log_level)
-    logging.basicConfig(level=log_level, format=log_format,
-                        handlers=[stream_handler, file_handler])
+    logging.basicConfig(level=log_level, format=log_format)
 
 def init_workers(distributed=False):
     rank, n_ranks = 0, 1
@@ -83,7 +78,7 @@ def main():
         os.makedirs(output_dir, exist_ok=True)
 
     # Loggging
-    config_logging(verbose=args.verbose, output_dir=output_dir)
+    config_logging(verbose=args.verbose)
     logging.info('Initialized rank %i out of %i', rank, n_ranks)
     if args.show_config:
         logging.info('Command line config: %s', args)
