@@ -46,7 +46,7 @@ def init_workers(distributed=False):
 
 def load_config(config_file):
     with open(config_file) as f:
-        config = yaml.load(f, Loader=yaml.FullLoader)
+        config = yaml.load(f) #, Loader=yaml.FullLoader)
     return config
 
 def get_basic_callbacks(distributed=False):
