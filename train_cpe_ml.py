@@ -23,7 +23,7 @@ from utils.callbacks import TimingCallback
 
 def parse_args():
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser('train.py')
+    parser = argparse.ArgumentParser('train_cpe_ml.py')
     add_arg = parser.add_argument
     add_arg('config', nargs='?', default='configs/hello.yaml')
     add_arg('-d', '--distributed', action='store_true')
