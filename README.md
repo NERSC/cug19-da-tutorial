@@ -25,9 +25,7 @@ As part of the tutorial, you will
 
 ## Links
 
-FIX THIS: Presentation slides: https://drive.google.com/drive/folders/1m_BEBlkbgBHiNg1bzzo74uRh6lJFBjLL?usp=sharing
-
-FIX THIS: Join the Slack workspace: https://join.slack.com/t/sc18-tut177/shared_invite/enQtNDY3OTUyNzcwNjI4LWYyNTlkMTI0ZGM5YzI4MDFkNWJiZjBlMjAxMzdiMzI1NTZhYmE5NmNhMzcyYzFhYzQ0ZjczNmJkMzRkZWIyNGY
+Presentation slides: https://drive.google.com/file/d/1yO1N84LFSeFra3ZaRAuy4E2TBYgUAS5W/view?usp=sharing
 
 NERSC JupyterHub: https://jupyter.nersc.gov
 
