@@ -1,9 +1,10 @@
 #!/bin/bash
 #SBATCH -J cifar-resnet
-#SBATCH -C haswell
+#SBATCH -C knl
 #SBATCH -N 1
-#SBATCH -q debug
-#SBATCH -t 30
+#SBATCH -q regular
+#SBATCH --reservation=cug_analytics_2019
+#SBATCH -t 45
 #SBATCH -o logs/%x-%j.out
 
 . /usr/common/software/python/3.6-anaconda-5.2/etc/profile.d/conda.sh
