@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -J cifar-resnet
+#SBATCH -J cifar-cnn
 #SBATCH -C knl
 #SBATCH -N 1
 #SBATCH -q regular
